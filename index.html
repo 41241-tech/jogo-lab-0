@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O LABORATÓRIO 0 - Jogo 2D de Investigação e Mistério</title>
+  <meta name="description" content="Um jogo indie de investigação 2D top-down em HTML5, CSS3 e JavaScript puro. Explore o misterioso Laboratório 0, descubra documentos secretos, resolva puzzles e desvende o Projeto 0.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Container principal do jogo -->
+  <div id="game-container">
+    <!-- Canvas do Jogo 2D -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Scanline / Efeito CRT sutil -->
+    <div id="crt-overlay"></div>
+
+    <!-- HUD DISCRETO DURANTE O JOGO -->
+    <div id="hud" class="hud-layer hidden">
+      <!-- Barra Superior -->
+      <div class="hud-top-bar">
+        <div class="hud-stat-group">
+          <div class="hud-icon power-icon">⚡</div>
+          <div class="hud-power-container">
+            <span class="hud-label">ENERGIA</span>
+            <div class="hud-power-bar-wrap">
+              <div id="hud-power-fill" class="hud-power-fill" style="width: 12%;"></div>
+            </div>
+            <span id="hud-power-text" class="hud-val">12%</span>
+          </div>
+        </div>
+
+        <div class="hud-stat-group center-stats">
+          <div id="hud-chapter-tag" class="hud-chapter-badge">CAPÍTULO 1: A ENTRADA</div>
+          <div class="hud-clock"><span id="hud-clock-time">03:17 AM</span></div>
+        </div>
+
+        <div class="hud-stat-group right-stats">
+          <div id="hud-flashlight-btn" class="hud-toggle-badge" title="Pressione F para alternar a lanterna">
+            <span class="badge-key">F</span> <span id="hud-flashlight-status">LANTERNA: ON</span>
+          </div>
+          <button id="hud-btn-quests" class="hud-mini-btn" title="Missões do Capítulo (J)">
+            <span class="badge-key">J</span> MISSÕES
+          </button>
+          <button id="hud-btn-inventory" class="hud-mini-btn" title="Inventário (I)">
+            <span class="badge-key">I</span> BOLSA
+          </button>
+          <button id="hud-btn-investigation" class="hud-mini-btn" title="Investigação (Q)">
+            <span class="badge-key">Q</span> PISTAS
+          </button>
+          <button id="hud-btn-map" class="hud-mini-btn" title="Mapa (M)">
+            <span class="badge-key">M</span> MAPA
+          </button>
+          <button id="hud-btn-menu" class="hud-mini-btn" title="Pausar (ESC)">
+            <span class="badge-key">ESC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Banner de Localização / Sala Atual -->
+      <div id="hud-room-banner" class="hud-room-banner">
+        <div class="room-indicator-line"></div>
+        <div id="hud-room-name" class="hud-room-text">SECTOR // ENTRADA</div>
+        <div class="room-indicator-line"></div>
+      </div>
+
+      <!-- PAINEL DE MISSÕES DO CAPÍTULO (HUD) -->
+      <div id="hud-quest-panel" class="hud-quest-panel">
+        <div class="quest-panel-header">
+          <div class="quest-header-title-row">
+            <span class="quest-tag">OBJETIVOS DO CAPÍTULO</span>
+            <span id="hud-quest-chapter-badge" class="quest-chapter-pill">CAPÍTULO 1: A ENTRADA</span>
+          </div>
+          <button id="hud-quest-expand-btn" class="quest-expand-btn" title="Abrir Diário Completo de Missões (J)">[J] DIÁRIO</button>
+        </div>
+        <div id="hud-quest-list" class="hud-quest-items">
+          <!-- Injetado dinamicamente via JS -->
+        </div>
+      </div>
+
+      <!-- Indicador de Interação Contextual -->
+      <div id="hud-interact-prompt" class="hud-interact-prompt hidden">
+        <span class="prompt-key">E</span>
+        <span id="hud-interact-label" class="prompt-text">Examinar</span>
+      </div>
+
+      <!-- Guia Rápido de Teclas no Rodapé -->
+      <div class="hud-controls-hint">
+        <span><b>WASD / ↑↓←→</b> Mover</span>
+        <span><b>E</b> Interagir</span>
+        <span><b>F</b> Lanterna</span>
+        <span><b>J</b> Missões</span>
+        <span><b>I</b> Inventário</span>
+        <span><b>Q</b> Pistas</span>
+        <span><b>M</b> Mapa</span>
+        <span><b>ESC</b> Pausa</span>
+      </div>
+    </div>
+
+    <!-- TELA DE TÍTULO / MENU PRINCIPAL -->
+    <div id="main-menu" class="menu-screen">
+      <div class="title-bg-particles" id="title-particles"></div>
+      <div class="title-vignette"></div>
+      <div class="title-content">
+        <div class="title-classification">CLASSIFICADO // NÍVEL ZERO // ACESSO RESTRITO</div>
+        <h1 class="game-title glitch-text" data-text="O LABORATÓRIO 0">O LABORATÓRIO 0</h1>
+        <p class="game-subtitle">“Algumas respostas deveriam permanecer enterradas.”</p>
+        
+        <div class="menu-button-group">
+          <button id="btn-new-game" class="menu-btn primary-btn">
+            <span class="btn-bracket">[</span> NOVO JOGO <span class="btn-bracket">]</span>
+          </button>
+          <button id="btn-continue" class="menu-btn secondary-btn" disabled>
+            <span class="btn-bracket">[</span> CONTINUAR <span class="btn-bracket">]</span>
+          </button>
+          <button id="btn-how-to-play" class="menu-btn">
+            <span class="btn-bracket">[</span> COMO JOGAR <span class="btn-bracket">]</span>
+          </button>
+          <button id="btn-investigation-preview" class="menu-btn">
+            <span class="btn-bracket">[</span> QUADRO DE CASOS <span class="btn-bracket">]</span>
+          </button>
+          <button id="btn-credits" class="menu-btn">
+            <span class="btn-bracket">[</span> CRÉDITOS <span class="btn-bracket">]</span>
+          </button>
+        </div>
+
+        <div class="title-footer">
+          <span>HISTÓRIA COMPLETA • 8 PUZZLES • 3 FINAIS • LOCALSTORAGE SAVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELA / MODAL COMO JOGAR -->
+    <div id="modal-how-to-play" class="game-modal hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>CONTROLES & GUIA DO INVESTIGADOR</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body controls-grid">
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">W</span><span class="key-cap">A</span><span class="key-cap">S</span><span class="key-cap">D</span> ou <span class="key-cap">↑</span><span class="key-cap">←</span><span class="key-cap">↓</span><span class="key-cap">→</span></div>
+            <div class="control-desc">Mover o personagem Alex</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">E</span></div>
+            <div class="control-desc">Interagir com portas, terminais, gavetas, pistas e NPCs</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">F</span></div>
+            <div class="control-desc">Ligar / Desligar a Lanterna (revela marcas ocultas e pistas em salas escuras)</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">I</span></div>
+            <div class="control-desc">Abrir Inventário e examinar cartões e itens</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">M</span></div>
+            <div class="control-desc">Abrir Mapa da Planta Baixa do laboratório</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">Q</span></div>
+            <div class="control-desc">Abrir Arquivo de Investigação e Quadro de Pistas</div>
+          </div>
+          <div class="control-row">
+            <div class="key-combo"><span class="key-cap">ESC</span></div>
+            <div class="control-desc">Pausar / Salvar o jogo / Fechar qualquer menu ativo</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">ENTENDIDO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELA / MODAL CRÉDITOS -->
+    <div id="modal-credits" class="game-modal hidden">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h2>CRÉDITOS</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body credits-body">
+          <h3>O LABORATÓRIO 0</h3>
+          <p>Jogo 2D completo desenvolvido exclusivamente com HTML5 Canvas, CSS3 e JavaScript puro.</p>
+          <div class="credit-section">
+            <strong>Gênero:</strong> Investigação, Mistério Sci-Fi, Top-down 2D
+          </div>
+          <div class="credit-section">
+            <strong>Áudio & Síntese:</strong> Web Audio API nativo do navegador
+          </div>
+          <div class="credit-section">
+            <strong>História & Roteiro:</strong> Alex, Dr. Helena, Técnico Marcos & Sistema ZERO
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">VOLTAR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAIXA DE DIÁLOGO MODERNA (NPCs E HISTÓRIA) -->
+    <div id="dialogue-box" class="dialogue-container hidden">
+      <div class="dialogue-card">
+        <div class="dialogue-speaker-wrap">
+          <div id="dialogue-avatar" class="speaker-avatar"></div>
+          <div class="speaker-meta">
+            <span id="dialogue-name" class="speaker-name">DR. HELENA</span>
+            <span id="dialogue-role" class="speaker-role">Ex-Pesquisadora Chefe</span>
+          </div>
+        </div>
+        <div class="dialogue-body">
+          <p id="dialogue-text" class="dialogue-text">“Você não deveria estar aqui...”</p>
+        </div>
+        <!-- Opções de Escolha / Resposta -->
+        <div id="dialogue-choices" class="dialogue-choices-list hidden">
+          <!-- Botões injetados dinamicamente via JS -->
+        </div>
+        <!-- Botão Continuar simples -->
+        <div id="dialogue-continue-bar" class="dialogue-actions">
+          <button id="btn-dialogue-next" class="btn-dialogue-continue">
+            Continuar <span class="arrow-blink">▶</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DO COMPUTADOR / TERMINAL CRT -->
+    <div id="terminal-modal" class="game-modal hidden">
+      <div class="terminal-bezel">
+        <div class="terminal-screen">
+          <div class="terminal-scanlines"></div>
+          <div class="terminal-header">
+            <div class="term-status-badge">ONLINE</div>
+            <div id="term-system-title" class="term-title">LABORATORY OS v4.2 // NÚCLEO CENTRAL</div>
+            <button id="term-close-btn" class="term-btn-power">DESLIGAR [ESC]</button>
+          </div>
+          
+          <div class="terminal-nav">
+            <button class="term-tab active" data-tab="status">SISTEMA</button>
+            <button class="term-tab" data-tab="logs">REGISTROS</button>
+            <button class="term-tab" data-tab="emails">E-MAILS</button>
+            <button class="term-tab" data-tab="cameras">CÂMERAS CCTV</button>
+            <button class="term-tab" data-tab="security">SEGURANÇA</button>
+          </div>
+
+          <div id="term-content-view" class="terminal-body">
+            <!-- Conteúdo do terminal renderizado via JS -->
+          </div>
+
+          <div class="terminal-footer">
+            <span class="term-prompt-line">&gt; TERMINAL ATIVO // AGUARDANDO COMANDO...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE INVENTÁRIO (TECLA I) -->
+    <div id="inventory-modal" class="game-modal hidden">
+      <div class="modal-box inventory-box">
+        <div class="modal-header">
+          <h2>INVENTÁRIO DO INVESTIGADOR [I]</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="inventory-layout">
+          <!-- Grid com 12 Slots de Itens -->
+          <div class="inventory-grid-wrap">
+            <div class="inv-subtitle">ITENS COLETADOS</div>
+            <div id="inventory-slots" class="inv-grid">
+              <!-- Injetado dinamicamente -->
+            </div>
+          </div>
+          <!-- Detalhes do Item Selecionado -->
+          <div class="inventory-details-wrap">
+            <div class="inv-subtitle">EXAMINAR ITEM</div>
+            <div id="inv-item-detail" class="inv-inspect-card">
+              <div class="empty-inspect-state">Selecione um item no inventário para inspecionar.</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">FECHAR [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE INVESTIGAÇÃO (PISTAS, DOSSIÊS E QUADRO DE CONEXÕES) -->
+    <div id="investigation-modal" class="game-modal hidden">
+      <div class="modal-box investigation-box">
+        <div class="modal-header">
+          <div class="investigation-title-group">
+            <h2>ARQUIVO DE INVESTIGAÇÃO & PISTAS</h2>
+            <div id="evidence-counter" class="evidence-pill">EVIDÊNCIAS: 0 / 20</div>
+          </div>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+
+        <div class="investigation-view-tabs">
+          <button class="inv-view-tab active" data-view="board">QUADRO DE INVESTIGAÇÃO</button>
+          <button class="inv-view-tab" data-view="people">PESSOAS</button>
+          <button class="inv-view-tab" data-view="places">LOCAIS</button>
+          <button class="inv-view-tab" data-view="projects">PROJETOS</button>
+          <button class="inv-view-tab" data-view="evidence">EVIDÊNCIAS & DOCUMENTOS</button>
+        </div>
+
+        <div class="investigation-body">
+          <!-- VIEW 1: QUADRO DE INVESTIGAÇÃO (CORKBOARD INTERATIVO COM LINHAS) -->
+          <div id="view-corkboard" class="investigation-panel active">
+            <div class="corkboard-canvas-wrap">
+              <svg id="corkboard-strings" class="corkboard-svg-lines"></svg>
+              <div id="corkboard-nodes" class="corkboard-pins-container">
+                <!-- Pins e cards renderizados via JS -->
+              </div>
+            </div>
+            <div class="corkboard-footer">
+              <small>* Conexões reveladas automaticamente conforme as pistas são descobertas no laboratório.</small>
+            </div>
+          </div>
+
+          <!-- VIEW 2: LISTAS CATEGORIZADAS (PESSOAS, LOCAIS, PROJETOS, EVIDÊNCIAS) -->
+          <div id="view-dossier" class="investigation-panel hidden">
+            <div id="dossier-items-list" class="dossier-grid">
+              <!-- Cards das evidências descobertas -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">VOLTAR [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DO MAPA INTERATIVO (TECLA M) -->
+    <div id="map-modal" class="game-modal hidden">
+      <div class="modal-box map-box">
+        <div class="modal-header">
+          <h2>PLANTA BAIXA DO COMPLEXO [M]</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="map-blueprint-wrapper">
+          <div id="map-blueprint" class="blueprint-grid">
+            <!-- Diagrama das salas gerado pelo JS -->
+          </div>
+          <div class="map-legend">
+            <div class="legend-item"><span class="legend-swatch room-unlocked"></span> Sala Descoberta</div>
+            <div class="legend-item"><span class="legend-swatch room-locked"></span> Setor Trancado</div>
+            <div class="legend-item"><span class="legend-swatch player-pos"></span> Localização de Alex</div>
+            <div class="legend-item"><span class="legend-swatch secret-room"></span> ??? Desconhecido</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">FECHAR [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE PUZZLES (DEDICADO PARA OS 8 PUZZLES) -->
+    <div id="puzzle-modal" class="game-modal hidden">
+      <div class="modal-box puzzle-box">
+        <div class="modal-header">
+          <h2 id="puzzle-title">DISPOSITIVO DE SEGURANÇA</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div id="puzzle-container" class="puzzle-body">
+          <!-- Interface do puzzle injetada dinamicamente -->
+        </div>
+        <div class="modal-footer">
+          <div id="puzzle-status-msg" class="puzzle-status">Aguardando inserção de dados...</div>
+          <button class="btn-action modal-close-btn">CANCELAR [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DO DIÁRIO DE MISSÕES / QUEST LOG (TECLA J) -->
+    <div id="quests-modal" class="game-modal hidden">
+      <div class="modal-box quests-box">
+        <div class="modal-header">
+          <div class="quest-modal-title-row">
+            <h2>DIÁRIO DE MISSÕES DO INVESTIGADOR [J]</h2>
+            <div id="quest-modal-progress-badge" class="quest-progress-pill">PROGRESSO: 1 / 24 CONCLUÍDAS</div>
+          </div>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        
+        <div class="quest-chapter-tabs">
+          <button class="quest-chap-tab active" data-chap="1">CAPÍTULO 1</button>
+          <button class="quest-chap-tab" data-chap="2">CAPÍTULO 2</button>
+          <button class="quest-chap-tab" data-chap="3">CAPÍTULO 3</button>
+          <button class="quest-chap-tab" data-chap="4">CAPÍTULO 4</button>
+          <button class="quest-chap-tab" data-chap="5">CAPÍTULO 5</button>
+          <button class="quest-chap-tab" data-chap="6">CAPÍTULO 6</button>
+        </div>
+
+        <div class="modal-body quests-modal-body">
+          <div class="quest-chap-banner">
+            <h3 id="quest-modal-chap-title">CAPÍTULO 1: A ENTRADA</h3>
+            <p id="quest-modal-chap-desc">“Inspecione o perímetro e adentre as dependências seladas do Laboratório 0.”</p>
+          </div>
+          <div id="quest-modal-cards-list" class="quests-cards-grid">
+            <!-- Cards de missões renderizados dinamicamente pelo JS -->
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">FECHAR [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE PAUSA / MENU ESC -->
+    <div id="pause-modal" class="game-modal hidden">
+      <div class="modal-box pause-box">
+        <div class="modal-header">
+          <h2>JOGO PAUSADO</h2>
+        </div>
+        <div class="pause-menu-actions">
+          <button id="btn-pause-resume" class="pause-btn primary-btn">CONTINUAR</button>
+          <button id="btn-pause-quests" class="pause-btn">DIÁRIO DE MISSÕES [J]</button>
+          <button id="btn-pause-inventory" class="pause-btn">INVENTÁRIO [I]</button>
+          <button id="btn-pause-investigation" class="pause-btn">ARQUIVO DE INVESTIGAÇÃO [Q]</button>
+          <button id="btn-pause-map" class="pause-btn">MAPA DO LABORATÓRIO [M]</button>
+          <button id="btn-pause-save" class="pause-btn">SALVAR JOGO (localStorage)</button>
+          <button id="btn-pause-load" class="pause-btn">CARREGAR ÚLTIMO SAVE</button>
+          <button id="btn-pause-settings" class="pause-btn">CONFIGURAÇÕES</button>
+          <button id="btn-pause-quit" class="pause-btn danger-btn">SAIR PARA O MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÕES -->
+    <div id="settings-modal" class="game-modal hidden">
+      <div class="modal-box settings-box">
+        <div class="modal-header">
+          <h2>CONFIGURAÇÕES</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body settings-body">
+          <div class="setting-item">
+            <label for="vol-slider">Volume dos Efeitos & Ambiente:</label>
+            <input type="range" id="vol-slider" min="0" max="100" value="80">
+            <span id="vol-val">80%</span>
+          </div>
+          <div class="setting-item">
+            <label>Efeito de Iluminação / Lanterna:</label>
+            <button id="btn-toggle-lighting" class="btn-secondary">Iluminação Dinâmica: ATIVA</button>
+          </div>
+          <div class="setting-item">
+            <label>Efeito Visual CRT / Scanlines:</label>
+            <button id="btn-toggle-crt" class="btn-secondary">Scanlines: ATIVAS</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-action modal-close-btn">CONCLUÍDO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPLASH DE TRANSIÇÃO DE CAPÍTULO -->
+    <div id="chapter-splash" class="chapter-splash-screen hidden">
+      <div class="chapter-splash-content">
+        <div id="splash-sub" class="chapter-splash-sub">PROJETO 0 // RELATÓRIO CONFIDENCIAL</div>
+        <h2 id="splash-title" class="chapter-splash-title">CAPÍTULO 1</h2>
+        <h3 id="splash-name" class="chapter-splash-name">A ENTRADA</h3>
+        <div class="splash-divider"></div>
+        <p id="splash-desc" class="chapter-splash-desc">“O Laboratório 0 nunca foi abandonado.”</p>
+      </div>
+    </div>
+
+    <!-- TELA FINAL / RESULTADOS / FINAIS DO JOGO -->
+    <div id="ending-screen" class="ending-screen hidden">
+      <div class="ending-card">
+        <div class="ending-header">
+          <div class="ending-tag">RELATÓRIO DE INVESTIGAÇÃO FINAL</div>
+          <h1 id="ending-title" class="ending-main-title">INVESTIGAÇÃO CONCLUÍDA</h1>
+          <div id="ending-badge" class="ending-badge-name">FINAL C — LABORATÓRIO 0 (FINAL VERDADEIRO)</div>
+        </div>
+
+        <div class="ending-stats-grid">
+          <div class="ending-stat-item">
+            <span class="stat-label">Evidências Encontradas:</span>
+            <span id="end-stat-evidence" class="stat-number">20 / 20</span>
+          </div>
+          <div class="ending-stat-item">
+            <span class="stat-label">Documentos Lidos:</span>
+            <span id="end-stat-docs" class="stat-number">15 / 15</span>
+          </div>
+          <div class="ending-stat-item">
+            <span class="stat-label">Áreas Exploradas:</span>
+            <span id="end-stat-areas" class="stat-number">100%</span>
+          </div>
+          <div class="ending-stat-item">
+            <span class="stat-label">Puzzles Resolvidos:</span>
+            <span id="end-stat-puzzles" class="stat-number">8 / 8</span>
+          </div>
+        </div>
+
+        <div class="ending-narrative-box">
+          <div id="ending-final-file-header" class="final-file-stamp">ARQUIVO FINAL // PROJETO 0</div>
+          <p id="ending-narrative-text" class="ending-story-text">
+            Ao quebrar o isolamento do Laboratório 0 e neutralizar a diretriz do Sistema ZERO, Alex descobriu o segredo que a diretoria tentou apagar por duas décadas...
+          </p>
+        </div>
+
+        <div class="ending-actions">
+          <button id="btn-ending-replay" class="menu-btn primary-btn">JOGAR NOVAMENTE</button>
+          <button id="btn-ending-menu" class="menu-btn secondary-btn">MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <!-- Script principal do jogo -->
+  <script src="script.js"></script>
+</body>
+</html>
